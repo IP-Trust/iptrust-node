@@ -1,6 +1,6 @@
 # @iptrust/sdk
 
-Official Node.js SDK for the [IP Trust](https://iptrust.co) API. Look up geolocation, ASN, company, hosting, known bot, VPN, proxy, Tor and privacy relay data for any IPv4 or IPv6 address, and download the underlying databases. Works in JavaScript and TypeScript, ships ESM and CommonJS builds, has no runtime dependencies, and uses the built-in `fetch` (Node 18+).
+Official Node.js SDK for the [IP Trust](https://iptrust.co) API. Look up geolocation, ASN, company, hosting, known bot, VPN, proxy, Tor and privacy relay data for any IPv4 or IPv6 address, and download the underlying databases. Works in JavaScript and TypeScript, ships ESM and CommonJS builds, has no runtime dependencies, and uses the built-in `fetch` (Node 20+).
 
 Get a free API key from the [IP Trust dashboard](https://dashboard.iptrust.co/). IP Trust is free for up to 10,000 requests a month.
 
@@ -13,9 +13,10 @@ npm install @iptrust/sdk
 ## Quick start
 
 ```ts
-import { IPTrustSDK } from "@iptrust/sdk";
+import { IPTrustClient } from "@iptrust/sdk";
 
-const iptrust = new IPTrustSDK(process.env.IPTRUST_API_KEY);
+const iptrust = new IPTrustClient(); // reads IPTRUST_API_KEY from the environment
+// or pass the key explicitly: new IPTrustClient("your-api-key")
 
 const result = await iptrust.lookupIp("9.9.9.9");
 
@@ -28,7 +29,7 @@ console.log(result.known_bot?.name);        // undefined unless a bot was detect
 CommonJS works too:
 
 ```js
-const { IPTrustSDK } = require("@iptrust/sdk");
+const { IPTrustClient } = require("@iptrust/sdk");
 ```
 
 ## IP lookup
@@ -69,6 +70,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
 const { download, response } = await iptrust.downloadDatabase("geolocation", "mmdb");
+if (!response.body) throw new Error("empty response body");
 await pipeline(Readable.fromWeb(response.body), createWriteStream(download.filename));
 ```
 
@@ -107,11 +109,11 @@ Timeouts throw an `IPTrustError` with `status: 0` and `errorCode: "timeout"`. Ne
 ## Options
 
 ```ts
-const iptrust = new IPTrustSDK(apiKey, {
+const iptrust = new IPTrustClient(apiKey, {
   baseUrl: "https://api.iptrust.co", // override for testing
   timeout: 10_000,                   // ms, 0 to disable
   fetch: myFetch,                    // custom fetch implementation
-  headers: { "User-Agent": "my-app/1.0" },
+  headers: { "User-Agent": "my-app/1.0" }, // default is "iptrust-node/<version>"
 });
 
 // Per-request cancellation

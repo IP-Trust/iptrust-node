@@ -7,11 +7,17 @@ import type {
   IPResponse,
 } from "./types.js";
 
+/** Injected at build time from package.json (see tsup.config.ts / vitest.config.ts). */
+declare const __SDK_VERSION__: string;
+
 export const DEFAULT_BASE_URL = "https://api.iptrust.co";
 export const DEFAULT_TIMEOUT_MS = 10_000;
+/** SDK version, e.g. "0.1.0". */
+export const VERSION: string = __SDK_VERSION__;
+const USER_AGENT = `iptrust-node/${VERSION}`;
 
-/** Options accepted by the {@link IPTrustSDK} constructor. */
-export interface IPTrustSDKOptions {
+/** Options accepted by the {@link IPTrustClient} constructor. */
+export interface IPTrustClientOptions {
   /** API base URL. Defaults to `https://api.iptrust.co`. */
   baseUrl?: string;
   /**
@@ -38,23 +44,31 @@ export interface RequestOptions {
  * Client for the IP Trust API.
  *
  * ```ts
- * import { IPTrustSDK } from "@iptrust/sdk";
+ * import { IPTrustClient } from "@iptrust/sdk";
  *
- * const iptrust = new IPTrustSDK("YOUR_API_KEY");
+ * const iptrust = new IPTrustClient(); // reads process.env.IPTRUST_API_KEY
+ * // or: new IPTrustClient("YOUR_API_KEY")
  * const result = await iptrust.lookupIp("9.9.9.9");
  * console.log(result.location?.country, result.vpn?.detected);
  * ```
  */
-export class IPTrustSDK {
+export class IPTrustClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly timeout: number;
   private readonly fetchImpl: typeof fetch;
   private readonly extraHeaders: Record<string, string>;
 
-  constructor(apiKey: string, options: IPTrustSDKOptions = {}) {
+  /**
+   * @param apiKey Your IP Trust API key. Defaults to the `IPTRUST_API_KEY`
+   * environment variable.
+   */
+  constructor(apiKey?: string, options: IPTrustClientOptions = {}) {
+    apiKey ??= globalThis.process?.env?.IPTRUST_API_KEY;
     if (typeof apiKey !== "string" || apiKey.trim() === "") {
-      throw new TypeError("IPTrustSDK: an API key is required");
+      throw new TypeError(
+        "IPTrustClient: an API key is required. Pass it to the constructor or set IPTRUST_API_KEY.",
+      );
     }
     this.apiKey = apiKey;
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
@@ -64,7 +78,7 @@ export class IPTrustSDK {
     const fetchImpl = options.fetch ?? globalThis.fetch;
     if (typeof fetchImpl !== "function") {
       throw new TypeError(
-        "IPTrustSDK: no fetch implementation available. Use Node 18+ or pass `fetch` in options.",
+        "IPTrustClient: no fetch implementation available. Use Node 18+ or pass `fetch` in options.",
       );
     }
     this.fetchImpl = fetchImpl;
@@ -78,7 +92,7 @@ export class IPTrustSDK {
    */
   async lookupIp(ip: string, options: RequestOptions = {}): Promise<IPResponse> {
     if (typeof ip !== "string" || ip.trim() === "") {
-      throw new TypeError("IPTrustSDK.lookupIp: an IP address is required");
+      throw new TypeError("IPTrustClient.lookupIp: an IP address is required");
     }
     return this.request<IPResponse>("GET", `/ip/${encodeURIComponent(ip.trim())}`, options);
   }
@@ -116,6 +130,7 @@ export class IPTrustSDK {
    * import { pipeline } from "node:stream/promises";
    *
    * const { response, download } = await iptrust.downloadDatabase("geolocation", "mmdb");
+   * if (!response.body) throw new Error("empty response body");
    * await pipeline(Readable.fromWeb(response.body), createWriteStream(download.filename));
    * ```
    */
@@ -129,6 +144,7 @@ export class IPTrustSDK {
     const response = await this.fetchImpl(download.url, {
       method: "GET",
       redirect: "follow",
+      headers: { "User-Agent": USER_AGENT },
       ...(options.signal ? { signal: options.signal } : {}),
     });
     if (!response.ok) {
@@ -145,8 +161,9 @@ export class IPTrustSDK {
   ): Promise<T> {
     const headers: Record<string, string> = {
       Accept: "application/json",
-      "X-API-Key": this.apiKey,
+      "User-Agent": USER_AGENT,
       ...this.extraHeaders,
+      "X-API-Key": this.apiKey,
     };
     if (body !== undefined) headers["Content-Type"] = "application/json";
 

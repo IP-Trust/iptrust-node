@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { IPTrustError, IPTrustSDK, type IPResponse } from "../src/index.js";
+import { IPTrustError, IPTrustClient, VERSION, type IPResponse } from "../src/index.js";
 
 const sampleIP: IPResponse = {
   ip: "9.9.9.9",
@@ -49,14 +49,30 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function makeClient(fetchMock: typeof fetch, extra: Record<string, unknown> = {}) {
-  return new IPTrustSDK("test-key", { fetch: fetchMock, ...extra });
+  return new IPTrustClient("test-key", { fetch: fetchMock, ...extra });
 }
 
-describe("IPTrustSDK constructor", () => {
+describe("IPTrustClient constructor", () => {
   it("requires an API key", () => {
-    expect(() => new IPTrustSDK("")).toThrow(TypeError);
-    // @ts-expect-error testing runtime guard
-    expect(() => new IPTrustSDK(undefined)).toThrow(TypeError);
+    vi.stubEnv("IPTRUST_API_KEY", "");
+    try {
+      expect(() => new IPTrustClient("")).toThrow(TypeError);
+      expect(() => new IPTrustClient()).toThrow(TypeError);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("falls back to IPTRUST_API_KEY", async () => {
+    vi.stubEnv("IPTRUST_API_KEY", "env-key");
+    try {
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(sampleIP));
+      await new IPTrustClient(undefined, { fetch: fetchMock }).lookupIp("9.9.9.9");
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+      expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("env-key");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("strips trailing slashes from baseUrl", async () => {
@@ -78,6 +94,8 @@ describe("lookupIp", () => {
     expect(url).toBe("https://api.iptrust.co/ip/9.9.9.9");
     expect(init.method).toBe("GET");
     expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("test-key");
+    expect((init.headers as Record<string, string>)["User-Agent"]).toBe(`iptrust-node/${VERSION}`);
+    expect(VERSION).toMatch(/^\d+\.\d+\.\d+/);
     expect(init.body).toBeUndefined();
   });
 
@@ -185,9 +203,11 @@ describe("lookupIp", () => {
     await expect(promise).rejects.toMatchObject({ name: "AbortError" });
   });
 
-  it("merges extra headers", async () => {
+  it("merges extra headers but never lets them override the API key", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(sampleIP));
-    await makeClient(fetchMock, { headers: { "User-Agent": "my-app/1.0" } }).lookupIp("9.9.9.9");
+    await makeClient(fetchMock, {
+      headers: { "User-Agent": "my-app/1.0", "X-API-Key": "nope" },
+    }).lookupIp("9.9.9.9");
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect((init.headers as Record<string, string>)["User-Agent"]).toBe("my-app/1.0");
     expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("test-key");
@@ -257,7 +277,7 @@ describe("databases", () => {
 
     const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(url).toBe(downloadBody.url);
-    expect(init.headers).toBeUndefined();
+    expect(init.headers).toEqual({ "User-Agent": `iptrust-node/${VERSION}` });
   });
 
   it("downloadDatabase throws if the file fetch fails", async () => {
