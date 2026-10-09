@@ -1,8 +1,18 @@
 {
   "name": "@iptrust/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Official Node.js SDK for the IP Trust API: IP geolocation, ASN, company, hosting, bot, VPN, proxy and Tor detection.",
-  "keywords": ["iptrust", "ip", "geolocation", "asn", "vpn", "proxy", "tor", "bot detection", "ip intelligence"],
+  "keywords": [
+    "iptrust",
+    "ip",
+    "geolocation",
+    "asn",
+    "vpn",
+    "proxy",
+    "tor",
+    "bot detection",
+    "ip intelligence"
+  ],
   "homepage": "https://iptrust.co",
   "bugs": "https://github.com/ip-trust/iptrust-node/issues",
   "repository": {
@@ -26,7 +36,11 @@
       }
     }
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "engines": {
     "node": ">=20"
