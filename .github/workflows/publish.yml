@@ -6,7 +6,7 @@ name: Publish to npm
 # Auth uses npm Trusted Publishing (OIDC): no NPM_TOKEN secret is needed.
 # One-time setup, after the first manual publish:
 #   npmjs.com -> package -> Settings -> Trusted Publisher -> GitHub Actions
-#   repo: ip-trust/iptrust-node, workflow: publish.yml
+#   repo: IP-Trust/iptrust-node, workflow: publish.yml
 on:
   release:
     types: [published]

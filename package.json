@@ -14,10 +14,10 @@
     "ip intelligence"
   ],
   "homepage": "https://iptrust.co",
-  "bugs": "https://github.com/ip-trust/iptrust-node/issues",
+  "bugs": "https://github.com/IP-Trust/iptrust-node/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ip-trust/iptrust-node.git"
+    "url": "git+https://github.com/IP-Trust/iptrust-node.git"
   },
   "license": "MIT",
   "type": "module",
