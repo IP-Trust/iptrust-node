@@ -15,8 +15,8 @@ npm install @iptrust/sdk
 ```ts
 import { IPTrustClient } from "@iptrust/sdk";
 
-const iptrust = new IPTrustClient(); // reads IPTRUST_API_KEY from the environment
-// or pass the key explicitly: new IPTrustClient("your-api-key")
+const iptrust = new IPTrustClient("your-api-key"); // Or reads IPTRUST_API_KEY from the environment
+                                                   // when not specified
 
 const result = await iptrust.lookupIp("9.9.9.9");
 
