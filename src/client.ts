@@ -1,5 +1,7 @@
 import { IPTrustError } from "./error.js";
 import type {
+  ASNResponse,
+  BatchIPResponse,
   DatabaseDownload,
   DatabaseFormat,
   DatabaseListResponse,
@@ -95,6 +97,37 @@ export class IPTrustClient {
       throw new TypeError("IPTrustClient.lookupIp: an IP address is required");
     }
     return this.request<IPResponse>("GET", `/ip/${encodeURIComponent(ip.trim())}`, options);
+  }
+
+  /**
+   * Look up intelligence for up to 25 IPv4 or IPv6 addresses in one request. The result is keyed by each address exactly as
+   * it was passed in. Every address counts as one request towards your quota.
+   *
+   * The request succeeds or fails as a whole.
+   *
+   * @throws {IPTrustError} 400 if any address is invalid or appears more than
+   * once, plus the same errors as {@link IPTrustClient.lookupIp}.
+   */
+  async lookupIps(ips: string[], options: RequestOptions = {}): Promise<BatchIPResponse> {
+    if (!Array.isArray(ips) || ips.length === 0) {
+      throw new TypeError("IPTrustClient.lookupIps: at least one IP address is required");
+    }
+    return this.request<BatchIPResponse>("POST", "/ip/batch", options, { ips });
+  }
+
+  /**
+   * Look up an autonomous system by its number, e.g. "AS13335". Resolves to
+   * its owner, announced routes, the countries its addresses are located in,
+   * and how many of its addresses have been detected as VPNs or proxies.
+   *
+   * @throws {IPTrustError} 400 malformed AS number, 403 plan does not include
+   * ASN data, 404 unknown AS.
+   */
+  async lookupAsn(asn: string, options: RequestOptions = {}): Promise<ASNResponse> {
+    if (typeof asn !== "string" || asn.trim() === "") {
+      throw new TypeError("IPTrustClient.lookupAsn: an AS number is required");
+    }
+    return this.request<ASNResponse>("GET", `/asn/${encodeURIComponent(asn.trim())}`, options);
   }
 
   /**

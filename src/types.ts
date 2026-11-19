@@ -245,6 +245,106 @@ export interface IPResponse {
   vpn?: VPN;
 }
 
+/**
+ * Response from `POST /ip/batch`: one {@link IPResponse} per address, keyed by
+ * the address exactly as it was sent.
+ */
+export type BatchIPResponse = Record<string, IPResponse>;
+
+// ---------------------------------------------------------------------------
+// ASN lookup
+// ---------------------------------------------------------------------------
+
+/** One IPv4 route announced by an AS. */
+export interface ASNIPv4Route {
+  /** The prefix in CIDR notation. */
+  route: string;
+  /** Number of addresses the route covers. */
+  ips: number;
+}
+
+/** The IPv4 address space announced by an AS. */
+export interface ASNIPv4 {
+  /** Number of IPv4 addresses announced. */
+  total_ips: number;
+  /** Number of IPv4 routes announced. */
+  total_routes: number;
+  /** The 100 largest routes, largest first. */
+  routes: ASNIPv4Route[];
+}
+
+/** One IPv6 route announced by an AS. */
+export interface ASNIPv6Route {
+  /** The prefix in CIDR notation. */
+  route: string;
+  /** Number of addresses the route covers, as a decimal string. */
+  ips_str: string;
+}
+
+/**
+ * The IPv6 address space announced by an AS.
+ *
+ * IPv6 address counts are larger than `Number.MAX_SAFE_INTEGER`, so the API
+ * sends them as decimal strings. Use `BigInt(value)` to do arithmetic.
+ */
+export interface ASNIPv6 {
+  /** Number of IPv6 addresses announced, as a decimal string. */
+  total_ips_str: string;
+  /** Number of IPv6 routes announced. */
+  total_routes: number;
+  /** The 100 largest routes, largest first. */
+  routes: ASNIPv6Route[];
+}
+
+/** The share of an AS's address space located in one country. */
+export interface ASNCountry {
+  /** ISO 3166-1 alpha-2 country code. */
+  country: string;
+  /** Full country name. */
+  country_name: string;
+  /** Number of the AS's IPv4 addresses in this country. */
+  ipv4_ips: number;
+  /**
+   * Number of IPv4 routes with addresses in this country. A route spanning
+   * several countries is counted in each.
+   */
+  ipv4_routes: number;
+  /** Number of the AS's IPv6 addresses in this country, as a decimal string. */
+  ipv6_ips_str: string;
+  /**
+   * Number of IPv6 routes with addresses in this country. A route spanning
+   * several countries is counted in each.
+   */
+  ipv6_routes: number;
+}
+
+/** Counts of the addresses in an AS detected as anonymizers. */
+export interface ASNAnonymization {
+  /** Number of addresses detected as VPN exit nodes. */
+  detected_vpn_ips: number;
+  /** Number of addresses detected as proxies. */
+  detected_proxy_ips: number;
+}
+
+/** Response from `GET /asn/{asn}`. */
+export interface ASNResponse {
+  /**
+   * The autonomous system. `route` and `risk_types` describe a single IP, so
+   * they are not part of an ASN lookup.
+   */
+  asn: Omit<ASN, "route" | "risk_types">;
+  /** ISO 8601 timestamp (UTC) when the details of this AS were last updated. */
+  updated_at?: string;
+  ipv4: ASNIPv4;
+  ipv6: ASNIPv6;
+  /**
+   * Where the AS's addresses are located, ordered by IPv4 address count,
+   * largest first.
+   */
+  countries: ASNCountry[];
+  anonymization: ASNAnonymization;
+}
+
 // ---------------------------------------------------------------------------
 // Database downloads
 // ---------------------------------------------------------------------------

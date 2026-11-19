@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { IPTrustError, IPTrustClient, VERSION, type IPResponse } from "../src/index.js";
+import {
+  IPTrustError,
+  IPTrustClient,
+  VERSION,
+  type ASNResponse,
+  type IPResponse,
+} from "../src/index.js";
 
 const sampleIP: IPResponse = {
   ip: "9.9.9.9",
@@ -211,6 +217,121 @@ describe("lookupIp", () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect((init.headers as Record<string, string>)["User-Agent"]).toBe("my-app/1.0");
     expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("test-key");
+  });
+});
+
+describe("lookupIps", () => {
+  const batchBody = {
+    "9.9.9.9": sampleIP,
+    "2001:DB8::1": { ip: "2001:db8::1", is_bogon: true },
+  };
+
+  it("posts the addresses and returns results keyed as sent", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(batchBody));
+    const result = await makeClient(fetchMock).lookupIps(["9.9.9.9", "2001:DB8::1"]);
+
+    expect(result).toEqual(batchBody);
+    expect(result["9.9.9.9"]?.asn?.number).toBe("AS19281");
+    expect(result["2001:DB8::1"]?.is_bogon).toBe(true);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.iptrust.co/ip/batch");
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
+    expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("test-key");
+    expect(JSON.parse(init.body as string)).toEqual({ ips: ["9.9.9.9", "2001:DB8::1"] });
+  });
+
+  it("rejects an empty batch without calling fetch", async () => {
+    const fetchMock = vi.fn();
+    await expect(makeClient(fetchMock).lookupIps([])).rejects.toThrow(TypeError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws IPTrustError when the API rejects the batch", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ error: { error_code: "bad_request", detail: 'invalid ip address: "nope"' } }, 400),
+    );
+    await expect(makeClient(fetchMock).lookupIps(["9.9.9.9", "nope"])).rejects.toMatchObject({
+      status: 400,
+      errorCode: "bad_request",
+    });
+  });
+});
+
+describe("lookupAsn", () => {
+  const sampleASN: ASNResponse = {
+    asn: {
+      number: "AS13335",
+      name: "CLOUDFLARENET",
+      company: "Cloudflare, Inc.",
+      country: "US",
+      type: "hosting",
+      rir: "ARIN",
+      domain: "cloudflare.com",
+      risk: 0.3,
+      risk_label: "moderate",
+    },
+    updated_at: "2026-11-16T21:01:02Z",
+    ipv4: {
+      total_ips: 1559552,
+      total_routes: 2736,
+      routes: [{ route: "152.114.0.0/17", ips: 32768 }],
+    },
+    ipv6: {
+      total_ips_str: "1526285772224943937874993086464",
+      total_routes: 3094,
+      routes: [{ route: "2a0a:6c80::/29", ips_str: "633825300114114700748351602688" }],
+    },
+    countries: [
+      {
+        country: "US",
+        country_name: "United States",
+        ipv4_ips: 1108047,
+        ipv4_routes: 1460,
+        ipv6_ips_str: "588213278578840409395446153213",
+        ipv6_routes: 2566,
+      },
+    ],
+    anonymization: { detected_vpn_ips: 111, detected_proxy_ips: 20711 },
+  };
+
+  it("hits GET /asn/{asn} and returns the typed body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(sampleASN));
+    const result = await makeClient(fetchMock).lookupAsn(" AS13335 ");
+
+    expect(result).toEqual(sampleASN);
+    expect(BigInt(result.ipv6.total_ips_str)).toBe(1526285772224943937874993086464n);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.iptrust.co/asn/AS13335");
+    expect(init.method).toBe("GET");
+    expect((init.headers as Record<string, string>)["X-API-Key"]).toBe("test-key");
+    expect(init.body).toBeUndefined();
+  });
+
+  it("URL-encodes path-like input so it cannot escape the /asn/ route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ error: { error_code: "bad_request", detail: "invalid as number" } }, 400),
+    );
+    await expect(makeClient(fetchMock).lookupAsn("../database")).rejects.toMatchObject({ status: 400 });
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.iptrust.co/asn/..%2Fdatabase");
+  });
+
+  it("rejects an empty AS number without calling fetch", async () => {
+    const fetchMock = vi.fn();
+    await expect(makeClient(fetchMock).lookupAsn("  ")).rejects.toThrow(TypeError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws IPTrustError on an unknown AS", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ error: { error_code: "not_found", detail: "asn not found" } }, 404),
+    );
+    await expect(makeClient(fetchMock).lookupAsn("AS999999999")).rejects.toMatchObject({
+      status: 404,
+      errorCode: "not_found",
+    });
   });
 });
 

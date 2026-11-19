@@ -49,6 +49,43 @@ r.proxy?.type;              // "residential" | "open"
 
 Full field reference: https://iptrust.co/docs
 
+## Batch IP lookup
+
+`lookupIps(ips)` calls `POST /ip/batch` with up to 25 addresses and resolves to an object keyed by each address exactly as you passed it. Every address counts as one request towards your quota.
+
+```ts
+const ips = ["9.9.9.9", "2001:4860:4860::8888"];
+const results = await iptrust.lookupIps(ips);
+for (const ip of ips) {
+  console.log(ip, results[ip]?.location?.country);
+}
+```
+
+The request succeeds or fails as a whole. If any address is invalid or appears twice, the call throws an `IPTrustError` with status 400 and no results.
+
+## ASN lookup
+
+`lookupAsn(asn)` calls `GET /asn/{asn}` with an AS number such as `"AS13335"` and resolves to an `ASNResponse`: the same `asn` object as an IP lookup (without `route` and `risk_types`), plus the AS's announced routes, the countries its addresses are in, and how many of its addresses have been detected as VPNs or proxies. Available on the Free, Identity and Complete packages.
+
+```ts
+const r = await iptrust.lookupAsn("AS13335");
+
+r.asn.company;               // "Cloudflare, Inc."
+r.ipv4.total_ips;            // number
+r.ipv4.routes;               // the 100 largest routes: { route, ips }
+
+// IPv6 address counts are too large for a JS number, so they are decimal strings.
+BigInt(r.ipv6.total_ips_str);
+
+for (const c of r.countries) {
+  console.log(c.country, c.ipv4_ips, c.ipv4_routes, c.ipv6_ips_str, c.ipv6_routes);
+}
+r.anonymization.detected_vpn_ips;
+r.anonymization.detected_proxy_ips;
+```
+
+An unknown AS number throws an `IPTrustError` with status 404.
+
 ## Database downloads
 
 For plans that include database downloads.
@@ -129,6 +166,7 @@ All response types are exported:
 import type {
   IPResponse, ASN, Location, Company, KnownBot, Hosting,
   AbuseContact, TorExitNode, PrivacyRelay, Proxy, VPN,
+  BatchIPResponse, ASNResponse, ASNCountry, ASNIPv4, ASNIPv6, ASNAnonymization,
   DatabaseType, DatabaseFormat, DatabaseListResponse, DatabaseDownload,
 } from "@iptrust/sdk";
 ```
