@@ -1,6 +1,6 @@
 {
   "name": "@iptrust/sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Official Node.js SDK for the IP Trust API: IP geolocation, ASN, company, hosting, bot, VPN, proxy and Tor detection.",
   "keywords": [
     "iptrust",
