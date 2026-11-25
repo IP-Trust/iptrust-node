@@ -2,7 +2,7 @@
 
 Official Node.js SDK for the [IP Trust](https://iptrust.co) API. Look up geolocation, ASN, company, hosting, known bot, VPN, proxy, Tor and privacy relay data for any IPv4 or IPv6 address, and download the underlying databases. Works in JavaScript and TypeScript, ships ESM and CommonJS builds, has no runtime dependencies, and uses the built-in `fetch` (Node 20+).
 
-Get a free API key from the [IP Trust dashboard](https://dashboard.iptrust.co/). IP Trust is free for up to 10,000 requests a month.
+Get a free API key from the [IP Trust dashboard](https://dashboard.iptrust.co/).
 
 ## Install
 
